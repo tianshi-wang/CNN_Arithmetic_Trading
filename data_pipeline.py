@@ -1,10 +1,14 @@
+import os
+
 import yfinance as yf
 import pandas as pd
 import numpy as np
 from pyts.image import GramianAngularField
+from pathlib import Path
 
 # all tickers to pull data
 tickers=['AAPL', 'QQQ']
+data_folder = Path(__file__).parent/"training_data"
 
 
 def get_time_series_df(period: str = '1y'):
@@ -30,7 +34,6 @@ def get_time_series_df(period: str = '1y'):
     return data
 
 
-
 def set_gaf_data(df, image_size: int = 20):
     """
     :param df: DataFrame data
@@ -39,11 +42,9 @@ def set_gaf_data(df, image_size: int = 20):
     dates = df.index.values
     df.reset_index(inplace=True)
     df = df.rename(columns={'index': 'Date'})
-    # df['Date'] = dates
-    # dates = dates.drop_duplicates()
-    # list_dates = dates.apply(str).tolist()
     index = image_size * 7
-    labels = {}    # key: datetime, value: percentage change on the day i.e. close vs previous day close
+    date_to_labels = {}    # key: datetime, value: percentage change on the day i.e. close vs previous day close
+    date_to_gafs = {}
 
     while True:
         if index >= len(dates) - 1:
@@ -51,54 +52,51 @@ def set_gaf_data(df, image_size: int = 20):
         # Select appropriate timeframe
         data_slice = df.loc[(df['Date'] > dates[index] - np.timedelta64(image_size * 7, 'D'))
                              & (df['Date'] < dates[index])]
-        gafs = []
         # Group data_slice by time frequency
+        stack = None
         for freq in ['1d', '7d']:
             group_dt = data_slice.groupby(pd.Grouper(key='Date', freq=freq)).mean().reset_index()
             group_dt = group_dt.dropna()
-            gafs.append(group_dt['Close'].tail(image_size))
+            layer = group_dt['Close'].tail(image_size).values
+            layer = layer[None, ...]
+            if stack is None:
+                stack = layer
+            else:
+                stack = np.append(stack, layer, axis=0)
         # Decide what trading position we should take on that day
-        labels[dates[index]] = df[df['Date'] == dates[index]]['Close_pct'].iloc[-1]
-        # current_value = data_slice['Close'].iloc[-1]
-        # decision = trading_action(future_close=future_value, current_close=current_value)
-        # decision_map[decision].append([list_dates[index - 1], gafs])
+        date_to_labels[dates[index]] = df[df['Date'] == dates[index]]['Close_pct'].iloc[-1]
+        date_to_gafs[dates[index]] = stack
         index += 1
-    return gafs, labels
+    return date_to_gafs, date_to_labels
 
-def create_gaf(ts):
+def create_gaf(stack):
     """
     :param ts:
     :return:
     """
-    data = dict()
-    gadf = GramianAngularField(method='difference', image_size=ts.shape[0])
-    data['gadf'] = gadf.fit_transform(pd.DataFrame(ts).T)[0] # ts.T)
-    return data
-
-
-# def data_to_image_preprocess():
-#     """
-#     :return: None
-#     """
-#     ive_data = 'IVE_tickbidask.txt'
-#     col_name = ['Date', 'Close', 'Close_pct', 'Volume']
-#     # df = pd.read_csv(os.path.join(PATH, ive_data), names=col_name, header=None)
-#     # # Drop unnecessary data
-#     # df = df.drop(['High', 'Low', 'Volume'], axis=1)
-#     # df['DateTime'] = pd.to_datetime(df['Date'] + ' ' + df['Time'], infer_datetime_format=True)
-#     # df = df.groupby(pd.Grouper(key='DateTime', freq='1h')).mean().reset_index()
-#     # df['Open'] = df['Open'].replace(to_replace=0, method='ffill')
-#     # Remove non trading days and times
-#     # clean_df = clean_non_trading_times(df)
-#     # Send to slicing
-#     set_gaf_data(clean_df)
+    row, col = stack.shape
+    gadf = GramianAngularField(method='difference', image_size=col)
+    image = None
+    for i in range(0, row):
+        layer = gadf.fit_transform(pd.DataFrame(stack[i, :]).T)
+        if image is None:
+            image = layer
+        else:
+            image = np.append(image, layer, axis=0)
+    return image
 
 
 if __name__ == '__main__':
     data = get_time_series_df()
     for ticker in tickers:
-        gafs, labels = set_gaf_data(data[ticker])
+        date_to_gafs, date_to_labels = set_gaf_data(data[ticker])
+        if not os.path.isdir(data_folder/ticker):
+            os.mkdir(data_folder/ticker)
 
-    pass
+        dates = sorted([dt for dt in date_to_labels])
+        labels = [date_to_labels[dt] for dt in dates]
+        pd.DataFrame({'date': dates, 'label': labels}).to_csv(path_or_buf=data_folder/ticker/'labels.csv', index=False)
 
-
+        for dt in date_to_gafs:
+            image = create_gaf(date_to_gafs[dt])
+            np.save(data_folder/ticker/(str(dt)[:10]+".npy"), image)
