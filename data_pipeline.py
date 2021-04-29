@@ -7,7 +7,7 @@ from pyts.image import GramianAngularField
 from pathlib import Path
 
 # all tickers to pull data
-tickers=['AAPL', 'QQQ']
+tickers = ['AAPL', 'QQQ', 'AMZN', 'MSFT', 'INTC', 'MARA']
 data_folder = Path(__file__).parent/"training_data"
 
 
@@ -69,6 +69,7 @@ def set_gaf_data(df, image_size: int = 20):
         index += 1
     return date_to_gafs, date_to_labels
 
+
 def create_gaf(stack):
     """
     :param ts:
@@ -87,7 +88,7 @@ def create_gaf(stack):
 
 
 if __name__ == '__main__':
-    data = get_time_series_df()
+    data = get_time_series_df(period='2y')
     for ticker in tickers:
         date_to_gafs, date_to_labels = set_gaf_data(data[ticker])
         if not os.path.isdir(data_folder/ticker):
