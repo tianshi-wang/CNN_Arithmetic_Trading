@@ -34,7 +34,7 @@ class CNN(tf.keras.Model):
         self.history = self.layers.fit(train, train_labels, epochs=10,
                     # validation_data=(test_images, test_labels)
                     )
-        self.test_loss, self.test_acc = model.evaluate(test,  test_labels, verbose=2)
+        self.test_loss, self.test_acc = self.layers.evaluate(test,  test_labels, verbose=2)
         
         self.predict = self.layers.predict(test)
         self.trainable_weights = self.layers.trainable_weights
