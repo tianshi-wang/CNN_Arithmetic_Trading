@@ -4,7 +4,7 @@ It is challenging to train deep learning models using stock time series data e.g
 Firstly, it is difficult to encode the time series data into a format a deep learning model can recognize the pattern within it. 
 Secondly, the number of training examples usually is too small to train a complex deep learning model.
 
-In this work, we encode each time-series data into a 20*20*7 image. Each channel is constructed using
+In this work, we encode each time-series data into a 20x20x7 image. Each channel is constructed using
 different market data or encoding method in order to expose
 the recognizable patterns for the models. We use transfer
 learning to overcome the small number of training data
