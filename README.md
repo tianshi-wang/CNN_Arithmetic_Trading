@@ -20,6 +20,8 @@ compared the results with the benchmark strategy and discussed
 the strength and limitation of the model. Finally, we
 visualize the model to understand the learned patterns.
 
+![Input and saliency map for each channel of an encoded image]( https://github.com/tianshi-wang/CNN_Arithmetic_Trading/blob/main/image.jpg?raw=true)
+
 
 
 
